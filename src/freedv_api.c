@@ -125,7 +125,7 @@ struct freedv *freedv_open_advanced(int mode, struct freedv_advanced *adv) {
         return NULL;
     }
     
-    f = (struct freedv*)MALLOC(sizeof(struct freedv));
+    f = (struct freedv*)calloc(1,sizeof(struct freedv));
     if (f == NULL)
         return NULL;
 
@@ -184,13 +184,7 @@ struct freedv *freedv_open_advanced(int mode, struct freedv_advanced *adv) {
     if (FDV_MODE_ACTIVE( FREEDV_MODE_700C, mode)) {
         f->snr_squelch_thresh = 0.0;
         f->squelch_en = 0;
-        switch(mode) {
-        case FREEDV_MODE_700C:
-            codec2_mode = CODEC2_MODE_700C;
-            break;
-        default:
-            assert(0);
-        }
+        codec2_mode = CODEC2_MODE_700C;
 
         f->cohpsk = cohpsk_create();
         f->nin = COHPSK_NOM_SAMPLES_PER_FRAME;
@@ -463,7 +457,6 @@ struct freedv *freedv_open_advanced(int mode, struct freedv_advanced *adv) {
         /* Create the framer|deframer */
         f->deframer = fvhff_create_deframer(FREEDV_VHF_FRAME_A,1);
         if(f->deframer == NULL) {
-            if (f->codec_bits != NULL) { FREE(f->codec_bits); }
             return NULL;
         }
         
@@ -492,22 +485,22 @@ struct freedv *freedv_open_advanced(int mode, struct freedv_advanced *adv) {
             return NULL;
   
         f->fsk = fsk_create_hbr(8000,400,10,4,800,400);
-        fsk_set_nsym(f->fsk,32);
-        
-        /* Note: fsk expects tx/rx bits as an array of uint8_ts, not ints */
-        f->tx_bits = (int*)MALLOC(f->fsk->Nbits*sizeof(uint8_t));
-        
         if(f->fsk == NULL){
             fvhff_destroy_deframer(f->deframer);
             return NULL;
         }
+        fsk_set_nsym(f->fsk,32);
         
+        /* Note: fsk expects tx/rx bits as an array of uint8_ts, not ints */
+        f->tx_bits = (int*)MALLOC(f->fsk->Nbits*sizeof(uint8_t));
+
         f->n_nom_modem_samples = f->fsk->N;
         f->n_max_modem_samples = f->fsk->N + (f->fsk->Ts);
         f->n_nat_modem_samples = f->fsk->N;
         f->nin = fsk_nin(f->fsk);
         f->modem_sample_rate = 8000;
         f->modem_symbol_rate = 400;
+        f->ext_vco = 0;
 
         /* Malloc something to appease freedv_init and freedv_destroy */
         f->codec_bits = MALLOC(1);
